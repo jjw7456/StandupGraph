@@ -10,6 +10,7 @@ class Operation:
     kind: str
     branching: int
     parents: List[str] = field(default_factory=list)
+    parent_sample_size: int = 3
     temperature: float = 0.7
     max_tokens: int = 256
     metadata: Dict = field(default_factory=dict)
@@ -52,6 +53,7 @@ def build_default_comedy_plan(num_lines: int = 8) -> GraphOfOperations:
             name="seed_topics",
             kind="seed",
             branching=1,
+            parent_sample_size=0,
             temperature=0.3,
             metadata={"role": "concept"},
         )
@@ -62,6 +64,7 @@ def build_default_comedy_plan(num_lines: int = 8) -> GraphOfOperations:
             kind="generate",
             branching=min(4, max(2, num_lines // 2)),
             parents=["seed_topics"],
+            parent_sample_size=1,
             temperature=0.9,
             metadata={"role": "setup"},
         )
@@ -72,6 +75,7 @@ def build_default_comedy_plan(num_lines: int = 8) -> GraphOfOperations:
             kind="punchline",
             branching=min(4, num_lines),
             parents=["setup_search"],
+            parent_sample_size=min(3, max(1, num_lines // 3)),
             temperature=0.85,
             metadata={"role": "punchline"},
         )
@@ -82,6 +86,7 @@ def build_default_comedy_plan(num_lines: int = 8) -> GraphOfOperations:
             kind="callback",
             branching=min(3, num_lines // 2 or 1),
             parents=["setup_search", "punchline_forge"],
+            parent_sample_size=min(4, max(2, num_lines // 2)),
             temperature=0.75,
             metadata={"role": "callback"},
         )
@@ -92,6 +97,7 @@ def build_default_comedy_plan(num_lines: int = 8) -> GraphOfOperations:
             kind="tag",
             branching=min(3, num_lines // 2 or 1),
             parents=["punchline_forge", "callback_weaver"],
+            parent_sample_size=min(3, max(2, num_lines // 3 or 1)),
             temperature=0.7,
             metadata={"role": "tag"},
         )
@@ -102,6 +108,7 @@ def build_default_comedy_plan(num_lines: int = 8) -> GraphOfOperations:
             kind="refine",
             branching=1,
             parents=["tag_runner"],
+            parent_sample_size=min(4, max(2, num_lines // 2 or 1)),
             temperature=0.55,
             metadata={"role": "closer"},
         )

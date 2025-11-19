@@ -52,14 +52,16 @@ class ComedyController:
                         weight = 0.5 * score + 0.5 * parent.score
                         self.grs.add_edge(parent.vertex_id, vertex.vertex_id, weight=weight, label=operation.name)
 
-        return self.grs.descend_path(num_steps=target_lines)
+        final_path = self.grs.beam_search_path(num_steps=target_lines)
+        if not final_path:
+            final_path = self.grs.descend_path(num_steps=target_lines)
+        return final_path
 
     def _select_parents(self, operation: Operation) -> List[ThoughtVertex]:
         if not operation.parents:
             return []
-        candidates: List[ThoughtVertex] = []
-        for parent_name in operation.parents:
-            candidates.extend(self.grs.vertices_from_ops([parent_name]))
+        candidates: List[ThoughtVertex] = self.grs.vertices_from_ops(operation.parents)
         if not candidates:
             candidates = self.grs.best_vertices(limit=3)
-        return candidates
+        limit = operation.parent_sample_size or len(candidates)
+        return sorted(candidates, key=lambda v: v.score, reverse=True)[:limit]
