@@ -27,21 +27,46 @@ class MockLLM(LLMInterface):
 class LlamaLLM(LLMInterface):
     """LLM implementation using transformers for Llama 3.1."""
 
-    def __init__(self, model_path: str = "meta-llama/Meta-Llama-3.1-8B-Instruct", device: str = "cuda"):
+    def __init__(self, model_path: str = "meta-llama/Meta-Llama-3.1-8B-Instruct", adapter_path: str = None, quantization: str = None, device: str = "cuda"):
         try:
-            from transformers import AutoTokenizer, AutoModelForCausalLM
+            from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
             import torch
         except ImportError:
-            raise ImportError("Please install transformers and torch to use LlamaLLM.")
+            raise ImportError("Please install transformers, torch, and bitsandbytes to use LlamaLLM.")
 
         self.device = device
         print(f"Loading model from {model_path}...")
+        
+        quantization_config = None
+        if quantization == "4bit":
+            quantization_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=torch.bfloat16,
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_quant_type="nf4"
+            )
+        elif quantization == "8bit":
+            quantization_config = BitsAndBytesConfig(load_in_8bit=True)
+
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        
+        # Load base model
         self.model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            torch_dtype=torch.bfloat16,
+            quantization_config=quantization_config,
+            torch_dtype=torch.bfloat16 if quantization is None else None,
             device_map="auto"
         )
+
+        # Load adapter if provided
+        if adapter_path:
+            try:
+                from peft import PeftModel
+                print(f"Loading adapter from {adapter_path}...")
+                self.model = PeftModel.from_pretrained(self.model, adapter_path)
+            except ImportError:
+                raise ImportError("Please install peft to use LoRA adapters.")
+        
         print("Model loaded.")
 
     def generate(self, prompt: str, max_new_tokens: int = 512, temperature: float = 0.7) -> str:
