@@ -13,8 +13,8 @@ import os
 def train():
     # Configuration
     model_id = "meta-llama/Meta-Llama-3.1-8B-Instruct"
-    dataset_path = "fine_tune/train.jsonl"
-    output_dir = "fine_tune/adapters"
+    dataset_path = "../output.txt"  # Path relative to fine_tune/ directory
+    output_dir = "adapters"
     
     # Load Dataset
     if not os.path.exists(dataset_path):
@@ -73,14 +73,31 @@ def train():
         report_to="none" # Disable wandb/tensorboard for simplicity
     )
 
+    # Formatting function for messages
+    def format_messages(examples):
+        # Convert messages to text using tokenizer's chat template
+        texts = []
+        for messages in examples["messages"]:
+            # Apply chat template to format messages
+            text = tokenizer.apply_chat_template(
+                messages, 
+                tokenize=False, 
+                add_generation_prompt=False
+            )
+            texts.append(text)
+        return {"text": texts}
+    
+    # Apply formatting to dataset
+    dataset = dataset.map(format_messages, batched=True)
+    
     # Trainer
     trainer = SFTTrainer(
         model=model,
+        tokenizer=tokenizer,
         train_dataset=dataset,
         peft_config=peft_config,
-        tokenizer=tokenizer,
         args=training_args,
-        packing=False, # Can set to True if we want to pack sequences
+        dataset_text_field="text",  # Use formatted text field
     )
 
     # Train
