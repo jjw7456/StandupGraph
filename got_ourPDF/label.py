@@ -10,7 +10,7 @@ MODEL_ID = "meta-llama/Meta-Llama-3.1-8B-Instruct"
 INPUT_FILE = "transcript.txt"
 OUTPUT_FILE = "fine_tune/labeled_dataset.json"
 # Set to None to process all lines, or a number for testing
-MAX_SAMPLES = 1 
+MAX_SAMPLES = 3
 
 def load_model():
     print(f"Loading model {MODEL_ID}...")
@@ -119,6 +119,8 @@ def process_transcripts():
             return_tensors="pt"
         ).to(model.device)
 
+        attention_mask = (input_ids != tokenizer.pad_token_id).long()
+        
         terminators = [
             tokenizer.eos_token_id,
             tokenizer.convert_tokens_to_ids("<|eot_id|>")
@@ -128,6 +130,8 @@ def process_transcripts():
         with torch.no_grad():
             outputs = model.generate(
                 input_ids,
+                attention_mask = attention_mask,
+                pad_token_id=tokenizer.eos_token_id,
                 max_new_tokens=2048, # Adjust as needed
                 eos_token_id=terminators,
                 do_sample=True,
